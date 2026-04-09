@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FPS Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: Arial; background: black; }
+
+    canvas { display: block; }
+
+    #menu {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+
+    button {
+      padding: 12px 20px;
+      margin: 8px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    #playBtn { background: limegreen; }
+    #fsBtn { background: dodgerblue; }
+
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="menu">
+  <h1>🎮 FPS Game</h1>
+  <button id="playBtn">PLAY</button>
+  <button id="fsBtn">FULLSCREEN</button>
+</div>
+
+<div id="ui">WASD move • Mouse look • Click shoot</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/PointerLockControls.js"></script>
+
+<script>
+let scene, camera, renderer, controls
+let enemies = []
+let bullets = []
+
+document.getElementById("playBtn").onclick = startGame
+document.getElementById("fsBtn").onclick = toggleFullscreen
+
+function toggleFullscreen() {
+  const doc = document.documentElement
+  if (!document.fullscreenElement) doc.requestFullscreen()
+  else document.exitFullscreen()
+}
+
+function startGame() {
+  document.getElementById("menu").style.display = "none"
+  document.getElementById("ui").style.display = "block"
+
+  init()
+  animate()
+
+  controls.lock()
+}
+
+function init() {
+
+  scene = new THREE.Scene()
+  scene.fog = new THREE.Fog(0x0a0f1f, 15, 120)
+
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000)
+
+  renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.shadowMap.enabled = true
+  document.body.appendChild(renderer.domElement)
+
+  controls = new THREE.PointerLockControls(camera, document.body)
+  scene.add(controls.getObject())
+
+  scene.add(new THREE.HemisphereLight(0x9ecbff, 0x1b1b1b, 1.2))
+
+  const sun = new THREE.DirectionalLight(0xffffff, 2)
+  sun.position.set(20, 40, 10)
+  scene.add(sun)
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(400,400),
+    new THREE.MeshStandardMaterial({ color: 0x2a2f3a })
+  )
+  ground.rotation.x = Math.PI/2
+  scene.add(ground)
+
+  for (let i=0;i<12;i++) {
+    let enemy = new THREE.Mesh(
+      new THREE.BoxGeometry(1,2,1),
+      new THREE.MeshStandardMaterial({ color: 0xff2a2a })
+    )
+    enemy.position.set((Math.random()-0.5)*60,1,(Math.random()-0.5)*60)
+    scene.add(enemy)
+    enemies.push(enemy)
+  }
+
+  document.addEventListener("keydown", move)
+  document.addEventListener("click", shoot)
+}
+
+function move(e) {
+  const speed = 1.4
+  if (e.key === "w") controls.moveForward(speed)
+  if (e.key === "s") controls.moveForward(-speed)
+  if (e.key === "a") controls.moveRight(-speed)
+  if (e.key === "d") controls.moveRight(speed)
+}
+
+function shoot() {
+  if (!controls.isLocked) return
+
+  const bullet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08),
+    new THREE.MeshStandardMaterial({ color: 0xffcc55, emissive: 0xff8800 })
+  )
+
+  bullet.position.copy(camera.position)
+  bullet.direction = camera.getWorldDirection(new THREE.Vector3())
+
+  scene.add(bullet)
+  bullets.push(bullet)
+}
+
+function animate() {
+  requestAnimationFrame(animate)
+
+  bullets.forEach((b,i)=>{
+    b.position.addScaledVector(b.direction, 2)
+
+    enemies.forEach((e,j)=>{
+      if (b.position.distanceTo(e.position) < 1) {
+        scene.remove(e)
+        enemies.splice(j,1)
+      }
+    })
+  })
+
+  renderer.render(scene,camera)
+}
+</script>
+
+</body>
+</html>
